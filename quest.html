@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🎁 Квест до Дня народження</title>
+  <meta name="description" content="Інтерактивний квест з загадками та призами" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #151923;
+      --muted: #a6adbb;
+      --text: #e5e7eb;
+      --accent: #6ee7b7;
+      --accent-2: #60a5fa;
+      --danger: #f87171;
+      --ok: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% 0%, #111827 0%, var(--bg) 60%);
+      color: var(--text);
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 60px; }
+    header { display:flex; align-items:center; gap:14px; margin-bottom: 18px; }
+    .badge { font-size: 12px; color: var(--bg); background: linear-gradient(45deg, var(--accent), var(--accent-2)); padding: 6px 10px; border-radius: 999px; font-weight: 700; letter-spacing: .5px; }
+    h1 { margin: 6px 0 2px; font-size: clamp(26px, 4.2vw, 40px); line-height: 1.1; }
+    p.lead { margin: 0; color: var(--muted); }
+
+    .card { background: linear-gradient(180deg, #161a24, var(--card)); border: 1px solid #1f2633; border-radius: 18px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .grid { display:grid; grid-template-columns: 1fr; gap: 18px; }
+
+    .progress { position: relative; height: 10px; background: #0b0e14; border-radius: 999px; overflow:hidden; border:1px solid #1f2633; }
+    .progress > span { display:block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .35s ease; }
+    .step { display:none; }
+    .step.active { display:block; }
+
+    .q { font-size: clamp(18px, 2.5vw, 22px); margin: 4px 0 12px; }
+    .hint { color: var(--muted); font-size: 14px; margin: -6px 0 12px; }
+
+    .field { display:flex; gap: 10px; align-items: center; }
+    input[type="text"] { flex: 1; background: #0b0e14; color: var(--text); border:1px solid #232a38; border-radius: 12px; padding: 12px 14px; font-size: 16px; outline: none; box-shadow: inset 0 0 0 1px transparent; }
+    input[type="text"]:focus { border-color: #2b3447; box-shadow: inset 0 0 0 1px #2b3447; }
+    button { background: #0b0e14; color: var(--text); border:1px solid #232a38; border-radius: 12px; padding: 10px 14px; font-size: 15px; cursor: pointer; }
+    button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); border: none; color: #0b0e14; font-weight: 700; }
+
+    .msg { margin-top: 10px; font-size: 14px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--danger); }
+
+    .prize { margin-top: 16px; padding: 14px; border-radius: 14px; background: #0b0e14; border:1px dashed #263044; }
+    .prize h4 { margin: 0 0 8px; }
+    .prize p { margin: 0; color: var(--muted); }
+
+    .footer { text-align:center; color: var(--muted); font-size: 13px; margin-top: 22px; }
+    .controls { display:flex; gap: 10px; margin-top: 14px; }
+
+    .locked { opacity: .65; filter: grayscale(70%); }
+
+    .final { text-align:center; padding: 26px 12px; }
+
+    .small { font-size: 12px; color: var(--muted); }
+
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } .prize { grid-column: span 2; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">Happy B-Day Quest</span>
+      <div>
+        <h1>🎉 Інтерактивний квест від <em>неї</em> для <em>нього</em></h1>
+        <p class="lead">Розгадуй підказки, відкривай призи і йди до фінального сюрпризу 💌</p>
+      </div>
+    </header>
+
+    <div class="card" id="app">
+      <div class="progress" aria-label="Прогрес"><span id="bar"></span></div>
+
+      <div id="steps"></div>
+
+      <div class="footer">
+        <div class="controls">
+          <button id="reset">Скинути прогрес</button>
+          <button id="share">Поділитися посиланням</button>
+        </div>
+        <p class="small">Підказка: відповіді не залежать від регістру і пробілів 😉</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Нормалізація кирилиці/латиниці + пробіли/знаки
+    const normalize = (s) => (s||"")
+      .toLowerCase()
+      .replace(/[`'’ʼ]/g, "'")
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const soft = (s) => normalize(s).replace(/[^\p{L}\p{N}]+/gu, '');
+
+    // КРОКИ КВЕСТУ
+    const STEPS = [
+      {
+        q: "1) Як ти мене називаєш з пісні?",
+        hint: "Згадуй приспів 😉",
+        answer: { accept: ["девочка пиздец", "девочка-пиздец", "дєвочка піздец"] },
+        prize: `
+          <h4>🎁 Приз #1</h4>
+          <p><em>Твоє перше маленьке селфі/відео/лист тут.</em> Замінити цю частину на твій контент (встав посилання або зображення з папки assets).</p>
+        `,
+      },
+      {
+        q: "2) Якого числа і місяця ми познайомилися? (прописом)",
+        hint: "другого … (місяць українською)",
+        answer: { accept: ["другого березня", "2 березня", "друге березня"] },
+        prize: `
+          <h4>🎁 Приз #2</h4>
+          <p>Посилання на спогад/плейлист/фотоальбом.</p>
+        `,
+      },
+      {
+        q: "3) Як ти себе любиш називати? Підказка (С П О)",
+        answer: { accept: ["стара пойобана ондатра", "спо", "стара па* ондатра"] },
+        prize: `
+          <h4>🎁 Приз #3</h4>
+          <p>Мем/гіфка/жарт тільки для нас двох.</p>
+        `,
+      },
+      {
+        q: "4) Візьми кожну букву по черзі (1-ша, 2-га …): my nobby mate honor nowcz derbby maverik bestival",
+        hint: "Візьми 1-шу, потім 2-гу, і так далі з кожного слова…",
+        answer: { accept: ["мотоцикл", "мотоциклі", "мото"] },
+        prize: `
+          <h4>🎁 Приз #4</h4>
+          <p>Кодове слово до міні-подарунка або промо-код.</p>
+        `,
+      },
+      {
+        q: "5) Що я колись обіцяла подарувати тобі на день народження? (скоріш за все червоненькі)",
+        answer: { accept: ["трусики", "труси", "червоні трусики", "червоні труси"] },
+        prize: `
+          <h4>🎁 Приз #5</h4>
+          <p>Фото/тизер подарунка 😉</p>
+        `,
+      },
+      {
+        q: "6) З якою квіткою тебе асоціювала Пані?",
+        answer: { accept: ["едельвейс", "еделвейс", "edelweiss"] },
+        prize: `
+          <h4>🎁 Приз #6</h4>
+          <p>Коротке відео-привітання або голосове повідомлення.</p>
+        `,
+      },
+      {
+        q: "7) Хто народжується у серпні?",
+        hint: "Можливо: Лев 🦁 … або ти 😉",
+        answer: { accept: ["лев", "діва", "ти", "він", "я"] },
+        prize: `
+          <div class="final">
+            <h2>💘 Фінальний сюрприз</h2>
+            <p>Тут може бути головний подарунок: лист, відео, посилання на секретний альбом або запрошення на зустріч.</p>
+            <p class="small">(Відредагуй цей блок у коді — зроби його особливим!)</p>
+          </div>
+        `,
+      },
+    ];
+
+    // === ЛОГІКА ===
+    const elSteps = document.getElementById('steps');
+    const bar = document.getElementById('bar');
+
+    const key = 'bday-quest-progress-v1';
+    let progress = parseInt(localStorage.getItem(key) || '0', 10);
+    if (isNaN(progress) || progress < 0) progress = 0;
+    if (progress > STEPS.length) progress = STEPS.length;
+
+    function render() {
+      elSteps.innerHTML = '';
+      const pct = Math.round((progress / STEPS.length) * 100);
+      bar.style.width = pct + '%';
+
+      STEPS.forEach((step, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'step' + (idx === progress ? ' active' : (idx < progress ? '' : ' locked'));
+
+        const card = document.createElement('div');
+        card.className = 'grid';
+
+        const left = document.createElement('div');
+        left.innerHTML = `
+          <div class="q">${step.q}</div>
+          ${step.hint ? `<div class="hint">Підказка: ${step.hint}</div>` : ''}
+          <div class="field">
+            <input type="text" placeholder="Введи відповідь…" aria-label="Відповідь" />
+            <button class="primary">Перевірити</button>
+          </div>
+          <div class="msg" aria-live="polite"></div>
+        `;
+
+        const right = document.createElement('div');
+        right.innerHTML = `<div class="prize">${step.prize}</div>`;
+
+        card.appendChild(left);
+        card.appendChild(right);
+        wrapper.appendChild(card);
+        elSteps.appendChild(wrapper);
+
+        const input = left.querySelector('input');
+        const btn = left.querySelector('button');
+        const msg = left.querySelector('.msg');
+
+        if (idx < progress) {
+          input.disabled = true; input.value = '✔ Відповідь зараховано';
+          btn.disabled = true; btn.textContent = 'Готово';
+          msg.innerHTML = '<span class="ok">Правильно! Можеш рухатися далі.</span>';
+        }
+
+        if (idx === progress) {
+          input.focus();
+          const check = () => {
+            const value = input.value;
+            const good = step.answer.accept.some(acc => soft(value) === soft(acc));
+            if (good) {
+              msg.innerHTML = '<span class="ok">Є контакт! Приз відкрито 🎉</span>';
+              progress = Math.min(STEPS.length, progress + 1);
+              localStorage.setItem(key, String(progress));
+              setTimeout(render, 500);
+            } else {
+              msg.innerHTML = '<span class="bad">Поки ні. Спробуй інакше або глянь підказку.</span>';
+            }
+          };
+          btn.addEventListener('click', check);
+          input.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+        }
+      });
+
+      if (progress === STEPS.length) {
+        elSteps.innerHTML = '';
+        const fin = document.createElement('div');
+        fin.className = 'step active';
+        fin.innerHTML = `
+          <div class="prize">${STEPS[STEPS.length - 1].prize}</div>
+          <div class="footer"><button id="again">Почати спочатку</button></div>
+        `;
+        elSteps.appendChild(fin);
+        document.getElementById('again')?.addEventListener('click', () => {
+          localStorage.removeItem(key);
+          progress = 0; render();
+        });
+      }
+    }
+
+    render();
+
+    document.getElementById('reset').addEventListener('click', () => {
+      if (confirm('Скинути прогрес і почати заново?')) {
+        localStorage.removeItem(key);
+        progress = 0; render();
+      }
+    });
+
+    document.getElementById('share').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        alert('Посилання скопійовано у буфер обміну!');
+      } catch {
+        alert('Скопіюй посилання вручну з адресного рядка.');
+      }
+    });
+  </script>
+</body>
+</html>

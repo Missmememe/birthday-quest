@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🔒 Вхід до квесту</title>
+  <style>
+    body { background: #0f1115; color: #e5e7eb; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #151923; padding: 20px; border-radius: 16px; border: 1px solid #232a38; max-width: 320px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+    input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #232a38; background: #0b0e14; color: #e5e7eb; font-size: 1rem; margin-bottom: 10px; }
+    button { background: linear-gradient(90deg, #6ee7b7, #60a5fa); border: none; color: #0b0e14; font-weight: 700; padding: 10px; width: 100%; border-radius: 10px; cursor: pointer; }
+    .msg { margin-top: 8px; font-size: 0.9rem; color: #f87171; min-height: 1.2em; }
+    .small { font-size: 12px; opacity: .8; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Вхід до сюрпризу 🎁</h1>
+    <p>Питання: <strong>Як сонечко тебе називає?</strong></p>
+    <input type="text" id="code" placeholder="Введи відповідь..." />
+    <button id="enter">Увійти</button>
+    <div class="msg" id="msg"></div>
+    <div class="small">Порада: два слова 😉</div>
+  </div>
+
+  <script>
+    const acceptable = ["не зануда","незануда","не-зануда","ne zanuda","ne-zanuda"];
+    const normalize = s => (s||"").toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,"").trim();
+    const ok = val => acceptable.some(a => normalize(a) === normalize(val));
+
+    document.getElementById('enter').addEventListener('click', () => {
+      const val = normalize(document.getElementById('code').value);
+      if (ok(val)) {
+        window.location.href = "quest.html"; // Файл з квестом
+      } else {
+        document.getElementById('msg').textContent = "Ні, спробуй ще 😉";
+      }
+    });
+
+    document.getElementById('code').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('enter').click();
+    });
+  </script>
+</body>
+</html>
